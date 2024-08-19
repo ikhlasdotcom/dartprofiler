@@ -1,0 +1,1 @@
+g++ -fPIC -shared libdartprofiler.cpp -o libdartprofiler.so

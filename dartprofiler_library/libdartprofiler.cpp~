@@ -1,0 +1,25 @@
+#if _WIN32
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT __attribute__((visibility("default")))
+#endif
+
+#include <stdint.h>
+#include <sys/resource.h>
+
+extern "C"
+{
+  EXPORT uint64_t rdtsc()
+  {
+    // If on ARM, need to replace __rdtsc with one of their performance
+    // counter instructions.
+    return __rdtsc();
+  }
+}
+

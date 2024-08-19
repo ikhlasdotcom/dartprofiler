@@ -1,0 +1,148 @@
+import 'dart:io';
+import 'package:dartprofiler/platform_metrics.dart';
+
+enum TestMode {
+  Uninitialized,
+  Testing,
+  Completed,
+  Error
+}
+
+class RepetitionTestResults {
+  int testCount = 0;
+  int totalTime = 0;
+  int maxTime = 0;
+  int minTime = 0;
+  
+}
+
+class RepetitionTester {
+  double CPUTimerFreq = 0;
+  int tryForTime = 0;
+  int testsStartedAt = 0;
+
+  TestMode mode = TestMode.Uninitialized;
+  bool printNewMinimums = false;
+  int openBlockCount = 0;
+  int closeBlockCount = 0;
+  int timeAccumulatedOnThisTest = 0;
+
+  RepetitionTestResults results = RepetitionTestResults();
+}
+
+void newTestWave(RepetitionTester tester, double CPUTimerFreq, [int secondsToTry = 10]) {
+  switch (tester.mode) {
+    case TestMode.Uninitialized:
+    tester.mode = TestMode.Testing;
+    tester.CPUTimerFreq = CPUTimerFreq;
+    tester.printNewMinimums = true;
+    tester.results.minTime = double.maxFinite.toInt();
+    break;
+    case TestMode.Completed:
+    tester.mode = TestMode.Testing;
+
+    if (tester.CPUTimerFreq != CPUTimerFreq) {
+      error(tester, "CPU frequency changed, tester ${tester.CPUTimerFreq}, argument ${CPUTimerFreq}.");
+    }
+    break;
+    default:
+    // Do nothing.
+  }
+
+  tester.tryForTime = (secondsToTry * CPUTimerFreq).round();
+  tester.testsStartedAt = readCPUTimer();
+}
+
+void beginTime(RepetitionTester tester) {
+  tester.openBlockCount++;
+  tester.timeAccumulatedOnThisTest -= readCPUTimer().round();
+}
+
+void endTime(RepetitionTester tester) {
+  tester.closeBlockCount++;
+  tester.timeAccumulatedOnThisTest += readCPUTimer().round();
+}
+
+bool isTesting(RepetitionTester tester) {
+  if (tester.mode == TestMode.Testing) {
+    int currentTime = readCPUTimer();
+
+    if (tester.openBlockCount > 0) {
+      if (tester.openBlockCount != tester.closeBlockCount) {
+        error(tester, "Unbalanced beginTime/endTime. (${tester.openBlockCount}/${tester.closeBlockCount})");
+      }
+
+      if (tester.mode == TestMode.Testing) {
+        RepetitionTestResults results = tester.results;
+
+        int elapsedTime = tester.timeAccumulatedOnThisTest;
+
+        results.testCount += 1;
+        results.totalTime += elapsedTime;
+        if (results.maxTime < elapsedTime) {
+          results.maxTime = elapsedTime;
+        }
+
+        if (results.minTime > elapsedTime) {
+          results.minTime = elapsedTime;
+
+          tester.testsStartedAt = currentTime;
+
+          if (tester.printNewMinimums) {
+            printTimeInt("Min", results.minTime, tester.CPUTimerFreq);
+          }
+        }
+
+        tester.openBlockCount = 0;
+        tester.closeBlockCount = 0;
+        tester.timeAccumulatedOnThisTest = 0;
+      }
+    }
+
+    if ((currentTime - tester.testsStartedAt) > tester.tryForTime) {
+      tester.mode = TestMode.Completed;
+
+      print("");
+      printResults(tester.results, tester.CPUTimerFreq);
+    }
+  }
+
+  bool result = (tester.mode == TestMode.Testing);
+  return result;
+}
+
+void error(RepetitionTester tester, String message) {
+  tester.mode = TestMode.Error;
+  print("ERROR: ${message}");
+}
+
+void printTime(String label, double CPUTime, double CPUTimerFreq) {
+  if (CPUTimerFreq > 0) {
+    double seconds = secondsFromCPUTime(CPUTime, CPUTimerFreq);
+
+    print("${label}: ${CPUTime.truncate()} (${(1000 * seconds).toStringAsPrecision(4)}ms)");
+  } else {
+    print("${label}: ${CPUTime.truncate()}");
+  }
+}
+
+void printTimeInt(String label, int CPUTime, double CPUTimerFreq) {
+  printTime(label, CPUTime.toDouble(), CPUTimerFreq);
+}
+
+double secondsFromCPUTime(double CPUTime, double CPUTimerFreq) {
+  double result = 0;
+  if (CPUTimerFreq > 0) {
+    result = (CPUTime / CPUTimerFreq);
+  }
+  return result;
+}
+
+void printResults(RepetitionTestResults results, double CPUTimerFreq) {
+  printTimeInt("Min", results.minTime, CPUTimerFreq);
+  printTimeInt("Max", results.maxTime, CPUTimerFreq);
+
+  if (results.testCount > 0) {
+    printTime("Avg", results.totalTime / results.testCount, CPUTimerFreq);
+  }
+}
