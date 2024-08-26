@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="dartprofiler API docs, for the Dart programming language.">
+  <title>dartprofiler - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+
+  
+</head>
+
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+
+<div id="overlay-under-drawer"></div>
+
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li class="self-crumb">dartprofiler package</li>
+  </ol>
+  <div class="self-name">dartprofiler</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <div class="toggle" id="theme-button" title="Toggle brightness">
+    <label for="theme">
+      <input type="checkbox" id="theme" value="light-theme">
+      <span id="dark-theme-button" class="material-symbols-outlined">
+        dark_mode
+      </span>
+      <span id="light-theme-button" class="material-symbols-outlined">
+        light_mode
+      </span>
+    </label>
+  </div>
+</header>
+<main>
+
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="dartprofiler">dartprofiler</h1>
+<p>Based on Casey Muratori's C++ profiler and repetition tester in his Computer
+Enhance course, this tool lets you profile and time specific segments of your
+Dart code with minimal overhead.</p>
+<ul>
+<li>Uses Dart FFI so that you can speak with CPU directly (overhead is less than
+Stopwatch, but can't be inlined on an assembly level, analysis done below)</li>
+<li>Independent from Dart's and Flutters profiling tools, which allows you to run
+it even in flutter's <code>release</code> mode.</li>
+</ul>
+<p>This tool is by no means perfect. I pulled it together really quickly to get
+some performance data for a project I was on short-term which I found the Dart
+DevTools to be unsatisfactory. I apologise in advance to anyone finds the setup
+process a pain. It has been open-sourced to give you an example as to how you
+can approach your own profiler, or hopefully, this profiler is improved upon by
+community-driven effort.</p>
+<h2 id="philosophy">Philosophy</h2>
+<ul>
+<li>The lightweightness gives you a picture of your how performant the segment of your
+code is, with minimal distortions.</li>
+<li>You ought to be able to talk to the CPU directly. All the drudge work of
+setting up the FFI into C++ has been done.</li>
+<li>The repetition tester allows you to time how long your code will take in the
+best case scenario, on top of counting page faults. The statefulness of the
+CPU becomes less of a concern.</li>
+</ul>
+<h2 id="setup">Setup</h2>
+<p>A lot of work is needed on the part of the developer to actually get all this
+working. If all this work doesn't seem worth it, you can replace the ticks in
+<code>dartprofiler.dart</code> with stopwatch ticks. It's a little less efficient, but it
+gets the job done.</p>
+<p>Unfortunately, I have only tried this with an Android device for a Flutter
+app. The setup provides a lot of instructions for that particular context. At
+the very least, I have linked some resources to make your life a little
+easier. Everyone has to go through step 1 and 2. Steps 3 and 4 will differ
+depending on how you are building the c++ code, whether you are using Flutter,
+and which platform you are on.</p>
+<p><a href="https://dart.dev/interop/c-interop">This</a> is the official documentation for c
+interop in Dart. <a href="https://dart.dev/interop/c-interop#bundle-and-load-c-libraries">The Bundle and load C
+libraries</a>
+section should be extra important to you if you are on a platform that differs
+from the steps below.</p>
+<ol>
+<li>Clone/download the repository, and import dartprofiler as dependency in your
+flutter app. For more information about <code>path:</code>, read <a href="https://docs.flutter.dev/packages-and-plugins/using-packages#dependencies-on-unpublished-packages">the official documentation</a>.</li>
+</ol>
+<pre class="language-yaml"><code class="language-yaml"># In pubspec.yaml
+
+# ...
+
+dev_dependencies:
+  # ...
+  dartprofiler:
+    path: "../path/to/dartprofiler"
+  # ...
+
+# ...
+
+</code></pre>
+<ol start="2">
+<li>Copy the <code>dartprofiler_lib</code> into the root of your app, you can rename it if
+you would like. If you are using flutter, you can ignore <code>build.sh</code> and rely
+solely on CMakeLists.txt. <code>build.sh</code> gives you an example of how you can compile
+the <code>cpp</code> code. If you would like to modify <code>cpp</code> side of things, you would
+have to look at <code>libdartprofiler.cpp</code>. I have provided examples for <code>rdtsc</code>
+and <code>cntvct_el0</code>.</li>
+<li>If you're relying on the <code>CMakeLists.txt</code> to build your c++ library (like for
+Flutter developers), make sure your build knows about the c++ library. For Android, add
+<a href="https://developer.android.com/reference/tools/gradle-api/8.0/com/android/build/api/dsl/ExternalNativeBuild"><code>externalNativeBuild</code></a> in <code>android/app/build.gradle</code>, as below. Make sure that
+it's pointing to the aforementioned <code>CMakeLists.txt</code>. I haven't tried
+it with any other platform. If you figure it out, feel free to make a PR to
+add to this <code>README</code>.</li>
+</ol>
+<pre class="language-dart"><code>externalNativeBuild {
+    // ...
+    cmake {
+        path "../../dartprofiler_library/CMakeLists.txt"
+    }
+    // ...
+}
+
+</code></pre>
+<ol start="4">
+<li>If you are talking to the CPU, make sure your build knows about it. For
+Flutter development on Android, add the following to
+<code>android/app/build.gradle</code>. If you are running in a mode other than release,
+replace <code>release</code> with that mode, like <code>debug</code>. Replace <code>"arm64-v8a"</code> with
+your particular ABI.</li>
+</ol>
+<pre class="language-dart"><code>// ...
+buildTypes {
+    release {
+        // TODO: Add your own signing config for the release build.
+        // Signing with the debug keys for now, so `flutter run --release` works.
+        signingConfig = signingConfigs.debug
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+    }
+}
+// ...
+</code></pre>
+<h2 id="guide">Guide</h2>
+<h3 id="dartprofiler-2"><code>dartprofiler</code></h3>
+<p>The following is a gist of how one would use this library to profile a segment
+of their code.</p>
+<pre class="language-dart"><code class="language-dart">// Tip: Import as a unique name, like `dp`, so you can just for `dp` to find
+where you are using the profiler.
+
+import 'package:dartprofiler/dartprofiler.dart' as dp;
+
+void main() {
+    doSomeStuff1();
+    
+    // Suppose we are interested in `doSomeStuff2` and `doSomeStuff3` only, we can surround it with
+    `beginProfile` and `endAndPrintProfile` so that the profiler ignores
+    `doSomeStuff1`. 
+    
+    
+    dp.beginProfile();
+    
+    // Suppose we want to know the individual time spent by doSomeStuff2 and
+    doSomeStuff3. We can use `markStart` and `markEnd`, or their alias, `s` and
+    `e` respectively.
+    
+    final b0 = dp.s("doSomeStuff2", 0);
+    doSomeStuff2(5);
+    dp.e(b0);
+    
+    final b1 = dp.s("doSomeStuff3", 1);
+    doSomeStuff3();
+    dp.e(b1);
+    
+    dp.endAndPrintProfile();
+}
+</code></pre>
+<p>For a reference on the API, see the
+<a href="/doc/api/dartprofiler/dartprofiler-library.html">documentation</a>. You only need
+to care about everything in <code>Functions</code>, and <code>e</code> and <code>s</code>. Note that <code>e</code> and <code>s</code>
+are aliases for <code>markStart</code> and <code>markEnd</code> respectively.</p>
+<h3 id="stubdartprofiler"><code>stubdartprofiler</code></h3>
+<p>Exactly the same API as <code>dartprofiler</code>, but all the procedures, except
+<code>beginProfile</code> and <code>endAndPrintProfile</code>, do nothing. The two procedures that do
+something calculate the total time spent in the profiled code segment. The
+purpose of this is to allow you to get a baseline on how long your code is
+taking with basically no intrusion from the profiler. You can then compare this
+number with how long your profiled code segment takes with <code>dartprofiler</code>. The
+difference indicates how intrusive your profiling is.</p>
+<h3 id="repetition_tester"><code>repetition_tester</code></h3>
+<h2 id="output-explanation">Output Explanation</h2>
+<h2 id="dartprofiler-vs-stopwatch">dartprofiler VS stopwatch</h2>
+<h2 id="contributing">Contributing</h2>
+<p>I am not actively improving the library as I am no longer using Dart, but I
+will keep my eyes open for pull requests.</p>
+<h3 id="project-sturcture">Project Sturcture</h3>
+<pre class="language-dart"><code>This profiler is not a command-line application, and hence, there is no
+`bin/`. I was lazy, so the `test/` is empty.
+</code></pre>
+<h3 id="using-classes-as-structs">Using Classes as Structs</h3>
+<pre class="language-dart"><code>Methods aren't used even though the data definitions are defined with
+classes. This isn't a political statement against object-oriented
+programming. I happen to find it easier to reason about the program when
+there is a clear separation between data and code that acts on them. Perhaps
+there is a way to blur that line in a productive way while maintaining the
+minimal overhead, but I haven't bothered with it.
+</code></pre>
+<h3 id="disadvantages--room-for-improvements">Disadvantages &amp; Room for Improvements</h3>
+<pre class="language-dart"><code>- You need manually track the `uid`. The printing at the the results
+associated with `uid` in ascending order.
+- As of now, there can only be 16 uids (0 - 15). You can have more by
+changing the constant in `lib/dartprofiler.dart`. The idea is that all the
+memory is allocated before the profiling begins. 
+- Calling into C++ is not as cheap and uninstrusive as calling
+  inlined-assembly in C++. As far as I am aware, currently, there is no way of getting
+  around this.
+- You need to specify both the start and end, it would be nice to just say
+  that you would like to treat an entire block as a zone. Dart has recently
+  introduced [macros](https://dart.dev/language/macros), perhaps it's
+  possible to do that now?
+- Every variant of dartprofiler requires you to copy from `dartprofiler`,
+  creating multiple sources of truth. For example, `stubdartprofiler`
+  clearly has a lot of overlap with `dartprofiler`. It would be nice if
+  there was a way to add compiler flags to add/remove certain parts of the
+  profiler, or a way to parameterize over with 0 runtime costs.
+- Getting the baseline performance with `stubdartprofiler` requires you to
+  actually modify the code, which is tedious and error-prone. Moreover,
+  requiring to maintain `stubdartprofiler` which is just a copy of
+  `dartprofiler` with many things removed is tedious. Furthermore,
+  some of the lines of code for the dart profiler are actually still
+  executed. Ideally, there should be a way to use a macro compile a version
+  of the code without the implementation, instead of having to resort to an
+  alternate library with empty implementations.
+- The documentation is automatically generated by `dart doc .`, and it may
+  include documentation on things that the library user don't need to know
+  about. For instance, it exposes the fields of `ProfileBlock` when the
+  library user does not, and should not, know about them.
+</code></pre>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="dartprofiler">
+  <span class="name"><a href="dartprofiler/dartprofiler-library.html">dartprofiler</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="platform_metrics">
+  <span class="name"><a href="platform_metrics/platform_metrics-library.html">platform_metrics</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="repetition_tester">
+  <span class="name"><a href="repetition_tester/repetition_tester-library.html">repetition_tester</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="stubdartprofiler">
+  <span class="name"><a href="stubdartprofiler/stubdartprofiler-library.html">stubdartprofiler</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+          <dt id="rdtsc_vs_stopwatch">
+  <span class="name"><a href="timing_tests_rdtsc_vs_stopwatch/timing_tests_rdtsc_vs_stopwatch-library.html">timing_tests/rdtsc_vs_stopwatch</a></span> 
+
+</dt>
+<dd>
+</dd>
+
+        </dl>
+      </section>
+
+  </div> <!-- /.main-content -->
+
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li class="self-crumb">dartprofiler package</li>
+</ol>
+
+
+    <h5 class="hidden-xs"><span class="package-name">dartprofiler</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="dartprofiler/dartprofiler-library.html">dartprofiler</a></li>
+      <li><a href="platform_metrics/platform_metrics-library.html">platform_metrics</a></li>
+      <li><a href="repetition_tester/repetition_tester-library.html">repetition_tester</a></li>
+      <li><a href="stubdartprofiler/stubdartprofiler-library.html">stubdartprofiler</a></li>
+      <li><a href="timing_tests_rdtsc_vs_stopwatch/timing_tests_rdtsc_vs_stopwatch-library.html">timing_tests/rdtsc_vs_stopwatch</a></li>
+</ol>
+
+  </div>
+
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+
+</main>
+
+<footer>
+  <span class="no-break">
+    dartprofiler
+      1.0.0
+  </span>
+
+  
+</footer>
+
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+
+
+</body>
+
+</html>
+

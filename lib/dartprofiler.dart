@@ -24,12 +24,16 @@ typedef ProfileBlock = ({
     int oldRootElapsedTicks
 });
 
-// Marks the start of the program. Anchors created before a beginProfile() call will have inaccurate numbers.
+/// Marks the start time of the profiling.
+///
+/// Call this first before any profiling. Anchors created before this call will
+/// have inaccurate numbers.
 void beginProfile() {
   initializePlatformMetrics();
   GlobalProfiler.startTick = readCPUTimer();
 }
 
+/// Marks the end of the profiling, and prints the results via [print].
 void endAndPrintProfile() {
   void printTimeElapsed(int totalCPUElapsed, Anchor anchor) {
     double percentageExclusive = 100 * (anchor.exclusiveElapsedTicks / totalCPUElapsed);
@@ -58,7 +62,16 @@ void endAndPrintProfile() {
   }
 }
 
-const s = markStart;
+/// Marks the start time of a profile block with the given [uid] with the given
+/// [label], and returns it.
+///
+/// @param label The human-readable name associated with the anchor when printed.
+/// @param uid The unique integer identifier associated with profile block.
+/// @returns The profile block associated with the given [uid].
+///
+/// You have to call `markEnd` on the returned profile block at some point so
+/// that the data can be printed at the end. Calling [markStart] with the same
+/// [uid] multiple times is undefined behaviour.
 ProfileBlock markStart(String label, int uid) {
   final parentAnchorIndex = GlobalProfiler.parentAnchorIndex;
   GlobalProfiler.parentAnchorIndex = uid;
@@ -70,8 +83,14 @@ ProfileBlock markStart(String label, int uid) {
     oldRootElapsedTicks: GlobalProfiler.anchors[uid].inclusiveElapsedTicks
   );
 }
+const s = markStart;
 
-const e = markEnd;
+/// Marks the end time of the given profile [block].
+///
+/// @param block The profile block to mark the end of.
+///
+/// Only call this once per profile block. Calling it more than once is
+/// undefined behaviour.
 void markEnd(ProfileBlock? block) {
   final (:label, :anchorIndex, :parentAnchorIndex, :startTick, :oldRootElapsedTicks) = block!;
   final newElapsedTicks = readCPUTimer() - startTick;
@@ -90,10 +109,4 @@ void markEnd(ProfileBlock? block) {
   anchor.inclusiveElapsedTicks += newElapsedTicks;
   anchor.hitCount += 1;
 }
-/*
-IWASHERE.
-What is eating time?
-- readCPUTimer?
-  - Test: readCPUTimer VS stopwatch.
-  - Test: readCPUTimer with isb vs without.
-*/
+const e = markEnd;
